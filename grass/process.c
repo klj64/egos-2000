@@ -18,9 +18,19 @@ void excp_entry(int id) {
     /* Student's code goes here: */
 
     /* If the exception is a system call, handle the system call and return */
-
+    if(id == 8 || id == 11){
+        int mepc;
+        asm("csrr %0, mepc" : "=r"(mepc));
+        asm("csrw mepc, %0" ::"r"(mepc + 4));
+    }
     /* Kill the process if curr_pid is a user app instead of a grass server */
 
+    if (curr_pid >= GPID_USER_START) { // what is earth->tty_intr()?
+        /* User process killed by ctrl+c interrupt */
+        INFO("process %d terminated with exception %d", curr_pid, id);
+        asm("csrw mepc, %0" ::"r"(0x8005008));
+        return;
+    }
     /* Student's code ends here. */
 
     FATAL("excp_entry: kernel got exception %d", id);
