@@ -12,6 +12,7 @@
 #include "syscall.h"
 #include <string.h>
 
+#define INTR_ID_SOFT       3
 void intr_entry(int id);
 
 void excp_entry(int id) {
@@ -22,6 +23,8 @@ void excp_entry(int id) {
         int mepc;
         asm("csrr %0, mepc" : "=r"(mepc));
         asm("csrw mepc, %0" ::"r"(mepc + 4));
+        intr_entry(INTR_ID_SOFT);
+        return;
     }
     /* Kill the process if curr_pid is a user app instead of a grass server */
 
@@ -36,20 +39,40 @@ void excp_entry(int id) {
     FATAL("excp_entry: kernel got exception %d", id);
 }
 
-void proc_init() {
+void proc_init()
+{
     earth->intr_register(intr_entry);
     earth->excp_register(excp_entry);
 
     /* Student's code goes here: */
-
+    // 0b0/00/A/xwr
     /* Setup PMP TOR region 0x00000000 - 0x08008000 as r/w/x */
+    // 0b00001111
+    int cfg;
+    asm("csrw pmpaddr0, %0" ::"r"(0x08008000));
+    cfg = 0x0F;
 
     /* Setup PMP NAPOT region 0x20400000 - 0x20800000 as r/-/x */
+    // 0b00011101
+    // We need to always rightshift by 2 to change the 34 byte address to 32 byte format. 
+    // Then we need to clear the bits of our address by right and then left shifting. 
+    // In our case we have 2^22 range so we clear n-2 bits. 22-2 = 20 bits.
+    // then we add one 0 followed by nineteen 1's to the end.
+    // where hex((1<<22)-1) = 0x3fffff
+    asm("csrw pmpaddr1, %0" ::"r"((((0x20400000 >> 2) >> 20) << 20) + 0x3ffff));
+    cfg = cfg | (0b00011101 << 8);
 
     /* Setup PMP NAPOT region 0x20800000 - 0x20C00000 as r/-/- */
-
+    // where
+    asm("csrw pmpaddr2, %0" ::"r"((((0x20800000 >> 2) >> 20) << 20) + 0x3ffff));
+    cfg = cfg | (0b00011101 << 16);
     /* Setup PMP NAPOT region 0x80000000 - 0x80004000 as r/w/- */
-
+    //>>> hex((1<<15)-1)
+    // 2^14 is address size of our range. Thus: n-2 = 14-2=12
+    // 0x7ff is one 0 followed by eleven 1's.
+    asm("csrw pmpaddr3, %0" ::"r"((((0x80000000 >> 2) >> 12) << 12) + 0x7ff));
+    cfg = cfg | (0b00011101 << 24);
+    asm("csrw pmpcfg0, %0" ::"r"(cfg));
     /* Student's code ends here. */
 
     /* The first process is currently running */
