@@ -54,13 +54,9 @@ void proc_init()
 
     /* Setup PMP NAPOT region 0x20400000 - 0x20800000 as r/-/x */
     // 0b00011101
-    // We need to always rightshift by 2 to change the 34 byte address to 32 byte format. 
-    // Then we need to clear the bits of our address by right and then left shifting. 
-    // In our case we have 2^22 range so we clear n-2 bits. 22-2 = 20 bits.
-    // then we add one 0 followed by nineteen 1's to the end.
     // where hex((1<<22)-1) = 0x7ffff
     asm("csrw pmpaddr1, %0" ::"r"((0x20400000 >> 2) + 0x7FFFF));
-    cfg |= 0x1C << 8;
+    cfg |= 0x1C << 8; // 0b11011 << 8
 
     /* Setup PMP NAPOT region 0x20800000 - 0x20C00000 as r/-/- */
     // where
