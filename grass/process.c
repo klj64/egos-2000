@@ -48,9 +48,9 @@ void proc_init()
     // 0b0/00/A/xwr
     /* Setup PMP TOR region 0x00000000 - 0x08008000 as r/w/x */
     // 0b00001111
-    int cfg;
     asm("csrw pmpaddr0, %0" ::"r"(0x08008000));
-    cfg = 0x0F;
+    int cfg = 0xF;
+    // write to pmpcfg0 with cfg
 
     /* Setup PMP NAPOT region 0x20400000 - 0x20800000 as r/-/x */
     // 0b00011101
@@ -58,21 +58,23 @@ void proc_init()
     // Then we need to clear the bits of our address by right and then left shifting. 
     // In our case we have 2^22 range so we clear n-2 bits. 22-2 = 20 bits.
     // then we add one 0 followed by nineteen 1's to the end.
-    // where hex((1<<22)-1) = 0x3fffff
-    asm("csrw pmpaddr1, %0" ::"r"((((0x20400000 >> 2) >> 20) << 20) + 0x3ffff));
-    cfg = cfg | (0b00011101 << 8);
+    // where hex((1<<22)-1) = 0x7ffff
+    asm("csrw pmpaddr1, %0" ::"r"((0x20400000 >> 2) + 0x7FFFF));
+    cfg |= 0x1C << 8;
 
     /* Setup PMP NAPOT region 0x20800000 - 0x20C00000 as r/-/- */
     // where
-    asm("csrw pmpaddr2, %0" ::"r"((((0x20800000 >> 2) >> 20) << 20) + 0x3ffff));
-    cfg = cfg | (0b00011101 << 16);
+    asm("csrw pmpaddr2, %0" ::"r"((0x20800000 >> 2) + 0x7FFFF));
+    cfg |= 0x19 << 16 ;
     /* Setup PMP NAPOT region 0x80000000 - 0x80004000 as r/w/- */
     //>>> hex((1<<15)-1)
     // 2^14 is address size of our range. Thus: n-2 = 14-2=12
     // 0x7ff is one 0 followed by eleven 1's.
-    asm("csrw pmpaddr3, %0" ::"r"((((0x80000000 >> 2) >> 12) << 12) + 0x7ff));
-    cfg = cfg | (0b00011101 << 24);
-    asm("csrw pmpcfg0, %0" ::"r"(cfg));
+    asm("csrw pmpaddr3, %0" ::"r"((0x80000000 >> 2) + 0x7FF));
+    cfg |= 0x1B << 24;
+
+    asm("csrw pmpcfg0, %0" :: "r"(cfg));
+    
     /* Student's code ends here. */
 
     /* The first process is currently running */

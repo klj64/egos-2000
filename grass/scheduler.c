@@ -91,16 +91,21 @@ static void proc_yield() {
      * depending on whether curr_pid is a grass server or a user app
      */
     // mstatus.MPP is the 12-11th bits in the mstatus register. 
-    int mstatus;
-    asm("csrr %0, mstatus" : "=r"(mstatus));
+    
+    
 
     if(curr_pid >= GPID_USER_START){ //curr_pid is user app
-        mstatus = mstatus & 0xF3FF; // 0xF3FF = 0b1111001111111111
+        int mstatus;
+        asm("csrr %0, mstatus" : "=r"(mstatus));
+        mstatus = mstatus & ~(3 << 11) ; // 0xF3FF = 0b1111001111111111
+        asm("csrw mstatus, %0" ::"r"(mstatus));
     }   // if user app then bitmask MPP to 00
     else{
-        mstatus = mstatus | 0x1800;//0x1800 = 0b00001100000000000
+        int mstatus;
+        asm("csrr %0, mstatus" : "=r"(mstatus));
+        mstatus = mstatus | (3 << 11);//0x1800 = 0b00001100000000000
+        asm("csrw mstatus, %0" ::"r"(mstatus));
     }    // if grass server then I bitmask and set the MPP to 11
-    asm("csrw mstatus, %0" ::"r"(mstatus));
 
     /* Student's code ends here. */
 
